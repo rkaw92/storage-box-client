@@ -38,7 +38,7 @@ class RequestError extends Error {
     public readonly statusCode: number;
     public readonly replyValue: any;
     constructor(statusCode: number, replyValue: any) {
-        super(`Request failed: statusCode = ${statusCode}`);
+        super(`Request failed: statusCode = ${statusCode}, response body: ${JSON.stringify(replyValue)}`);
         this.statusCode = statusCode;
         this.replyValue = replyValue;
     }
