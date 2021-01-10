@@ -1,10 +1,10 @@
-import { CreateDirectoryParams, DeleteEntryParams, Entry, FilesystemStructureOperations, ListDirectoryParams, MoveEntryParams } from '@rkaw92/storage-box-interfaces';
+import { CreateDirectoryParams, DeleteEntryParams, Entry, FilesystemDataUpload, FilesystemStructureOperations, ListDirectoryParams, MoveEntryParams, StartFileUploadParams, StartFileUploadResult, UploadFileParams, UploadFileResult } from '@rkaw92/storage-box-interfaces';
 import { APIClient } from './interfaces/APIClient';
 
-export class Filesystem implements FilesystemStructureOperations {
-    private client: APIClient;
+export class Filesystem<ReadableType> implements FilesystemStructureOperations, FilesystemDataUpload<ReadableType> {
+    private client: APIClient<ReadableType>;
     private alias: string;
-    constructor(client: APIClient, alias: string) {
+    constructor(client: APIClient<ReadableType>, alias: string) {
         this.client = client;
         this.alias = alias;
     }
@@ -25,5 +25,12 @@ export class Filesystem implements FilesystemStructureOperations {
         return this.client.request(`/fs/${this.alias}/entries/${params.entryID}/move`, 'POST', {
             targetParentID: params.targetParentID
         });
+    }
+    async startFileUpload(params: StartFileUploadParams): Promise<StartFileUploadResult[]> {
+        return this.client.request(`/fs/${this.alias}/upload`, 'POST', params);
+    }
+    async uploadFile(params: UploadFileParams<ReadableType>): Promise<UploadFileResult> {
+        const parameterizedPath = `/fs/${this.alias}/upload/finish?token=${encodeURIComponent(params.upload.token)}`;
+        return this.client.request(parameterizedPath, 'POST', params.upload.data);
     }
 }
