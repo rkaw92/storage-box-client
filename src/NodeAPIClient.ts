@@ -1,26 +1,24 @@
-import * as http from 'http';
-import * as https from 'https';
+import { http, https } from 'follow-redirects';
 import { APIClient, RequestMethod } from './interfaces/APIClient';
 import urlJoin from 'url-join';
 import concatStream from 'concat-stream';
 import { Writable, Readable } from 'stream';
 import { pipeline as pipelineCallback } from 'stream';
 import { promisify } from 'util';
+import { DownloadFileResult } from '@rkaw92/storage-box-interfaces';
+import { IncomingMessage, RequestOptions } from 'http';
 
 const pipeline = promisify(pipelineCallback);
 
-function concat() {
-    let stream: Writable;
-    let promise: Promise<Buffer>;
-    promise = new Promise(function(resolve) {
-        stream = concatStream(function(data) {
-            resolve(data);
-        });
-    });
-    return {
-        stream: stream!,
-        promise: promise
-    };
+function parseFileNameFromHeader(contentDisposition: string | undefined) {
+    if (!contentDisposition) {
+        return undefined;
+    }
+    const match = contentDisposition.match(/filename="([^"]*)"/);
+    if (!match) {
+        return undefined;
+    }
+    return match[1];
 }
 
 function isReadableStream(input: any): input is Readable {
@@ -36,12 +34,23 @@ class HTTPClient {
     constructor(isHTTPS: boolean) {
         this.isHTTPS = isHTTPS;
     }
-    request(url: string, options: http.RequestOptions, callback: (res: http.IncomingMessage) => void) {
+    request(url: string, options: RequestOptions, callback: (res: IncomingMessage) => void) {
+        const targetURL = new URL(url);
+        const finalOptions = Object.assign({}, options, {
+            protocol: targetURL.protocol,
+            hostname: targetURL.hostname,
+            hash: targetURL.hash,
+            search: targetURL.search,
+            pathname: targetURL.pathname,
+            path: targetURL.pathname + targetURL.search,
+            href: targetURL.href,
+            port: targetURL.port ? Number(targetURL.port) : undefined
+        });
         if (this.isHTTPS) {
             // TODO: Figure out how to enable custom HTTPS options: CA
-            return https.request(url, options, callback);
+            return https.request(finalOptions, callback);
         } else {
-            return http.request(url, options, callback);
+            return http.request(finalOptions, callback);
         }
     }
 }
@@ -56,7 +65,7 @@ class RequestError extends Error {
     }
 }
 
-export class NodeAPIClient implements APIClient<Readable> {
+export class NodeAPIClient implements APIClient<Readable,Readable> {
     private httpClient: HTTPClient;
     private baseURL: string;
     private authToken: string;
@@ -67,10 +76,10 @@ export class NodeAPIClient implements APIClient<Readable> {
         this.httpClient = new HTTPClient(isHTTPS);
         this.authToken = authToken;
     }
-    async request(path: string, method: RequestMethod, body?: any) {
+    private async request(path: string, method: RequestMethod, body?: any) {
         const self = this;
         const targetURL = urlJoin(this.baseURL, path);
-        return new Promise(async function(resolve, reject) {
+        return new Promise<IncomingMessage>(async function(resolve, reject) {
             const req = self.httpClient.request(targetURL, {
                 method: method,
                 headers: {
@@ -78,19 +87,7 @@ export class NodeAPIClient implements APIClient<Readable> {
                     'Authorization': `Bearer ${self.authToken}`
                 }
             }, function(res) {
-                res.pipe(concatStream(function(data) {
-                    let replyValue: any;
-                    try {
-                        replyValue = JSON.parse(data.toString('utf-8'));
-                    } catch (error) {
-                        replyValue = data.toString('utf-8');
-                    }
-                    if (res.statusCode! >= 200 && res.statusCode! < 300) {
-                        resolve(replyValue);
-                    } else {
-                        reject(new RequestError(path, res.statusCode!, replyValue));
-                    }
-                }));
+                resolve(res);
             });
             req.on('error', function(error) {
                 reject(error);
@@ -105,5 +102,39 @@ export class NodeAPIClient implements APIClient<Readable> {
                 req.end();
             }
         });
+    }
+
+    async call(path: string, method: RequestMethod, body?: any) {
+        const res = await this.request(path, method, body);
+        return new Promise<any>(function(resolve, reject) {
+            res.pipe(concatStream(function(data) {
+                let replyValue: any;
+                try {
+                    replyValue = JSON.parse(data.toString('utf-8'));
+                } catch (error) {
+                    replyValue = data.toString('utf-8');
+                }
+                if (res.statusCode! >= 200 && res.statusCode! < 300) {
+                    resolve(replyValue);
+                } else {
+                    reject(new RequestError(path, res.statusCode!, replyValue));
+                }
+            }));
+            res.on('error', function(error) {
+                reject(error);
+            });
+        });
+    }
+
+    async download(path: string): Promise<DownloadFileResult<Readable>> {
+        const res = await this.request(path, 'GET');
+        return {
+            data: res,
+            info: {
+                name: parseFileNameFromHeader(res.headers['content-disposition']),
+                mimetype: res.headers['content-type'],
+                bytes: res.headers['content-length'] ? Number(res.headers['content-length']) : undefined
+            }
+        };
     }
 };

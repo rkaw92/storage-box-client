@@ -3,6 +3,8 @@ import { Filesystems } from "./Filesystems";
 import { NodeAPIClient } from "./NodeAPIClient";
 import * as fs from 'fs';
 import { ItemUploadStarted } from "@rkaw92/storage-box-interfaces";
+import { Writable } from "stream";
+import concatStream from "concat-stream";
 
 const authToken = process.env.AUTH_TOKEN;
 if (!authToken) {
@@ -11,6 +13,20 @@ if (!authToken) {
 
 const client = new NodeAPIClient('http://localhost:3001/', authToken);
 const play = new Filesystem(client, 'play');
+
+function concat() {
+    let stream: Writable;
+    let promise: Promise<Buffer>;
+    promise = new Promise(function(resolve) {
+        stream = concatStream(function(data) {
+            resolve(data);
+        });
+    });
+    return {
+        stream: stream!,
+        promise: promise
+    };
+}
 
 // NOTE: Not called
 (async function() {
@@ -42,6 +58,7 @@ const play = new Filesystem(client, 'play');
     }));
 });
 
+// NOTE: Not called
 (async function() {
     const fd = fs.openSync('./testfile.date', 'r');
     const stream = fs.createReadStream('', { fd: fd });
@@ -65,4 +82,13 @@ const play = new Filesystem(client, 'play');
             console.log('Duplicate file - refusing upload');
         }
     }
+});
+
+(async function() {
+    const download = await play.downloadFile({ entryID: '24' });
+    console.log(download.info);
+    console.log('--- contents: ---');
+    const concatenator = concat();
+    download.data.pipe(concatenator.stream);
+    console.log((await concatenator.promise).toString());
 })();
