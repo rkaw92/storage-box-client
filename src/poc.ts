@@ -1,6 +1,6 @@
-import { Filesystem } from "./Filesystem";
-import { Filesystems } from "./Filesystems";
-import { NodeAPIClient } from "./NodeAPIClient";
+import { Filesystem } from "./Filesystem.js";
+import { Filesystems } from "./Filesystems.js";
+import { NodeAPIClient } from "./NodeAPIClient.js";
 import * as fs from 'fs';
 import { ItemUploadStarted } from "@rkaw92/storage-box-interfaces";
 import { Writable } from "stream";

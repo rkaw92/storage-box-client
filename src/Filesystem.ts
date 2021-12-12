@@ -1,5 +1,5 @@
 import { CreateDirectoryParams, DeleteEntryParams, DownloadFileParams, DownloadFileResult, Entry, FilesystemDataDownload, FilesystemDataUpload, FilesystemStructureOperations, ListDirectoryParams, MoveEntryParams, StartFileUploadParams, StartFileUploadResult, UploadFileParams, UploadFileResult } from '@rkaw92/storage-box-interfaces';
-import { APIClient } from './interfaces/APIClient';
+import { APIClient } from './interfaces/APIClient.js';
 
 export class Filesystem<InputType,OutputType> implements FilesystemStructureOperations, FilesystemDataUpload<InputType>, FilesystemDataDownload<OutputType> {
     private client: APIClient<InputType,OutputType>;

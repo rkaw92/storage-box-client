@@ -1,5 +1,5 @@
 import { CreateFilesystemParams, Filesystem, FilesystemsOperations } from '@rkaw92/storage-box-interfaces';
-import { APIClient } from './interfaces/APIClient';
+import { APIClient } from './interfaces/APIClient.js';
 
 export class Filesystems implements FilesystemsOperations {
     private client: APIClient<unknown, unknown>;

@@ -1,5 +1,6 @@
-import { http, https } from 'follow-redirects';
-import { APIClient, RequestMethod } from './interfaces/APIClient';
+import followRedirects from 'follow-redirects';
+const { http, https } = followRedirects;
+import { APIClient, RequestMethod } from './interfaces/APIClient.js';
 import urlJoin from 'url-join';
 import concatStream from 'concat-stream';
 import { Writable, Readable } from 'stream';
@@ -7,6 +8,7 @@ import { pipeline as pipelineCallback } from 'stream';
 import { promisify } from 'util';
 import { DownloadFileResult } from '@rkaw92/storage-box-interfaces';
 import { IncomingMessage, RequestOptions } from 'http';
+import { RequestError } from './RequestError.js';
 
 const pipeline = promisify(pipelineCallback);
 
@@ -52,16 +54,6 @@ class HTTPClient {
         } else {
             return http.request(finalOptions, callback);
         }
-    }
-}
-
-class RequestError extends Error {
-    public readonly statusCode: number;
-    public readonly replyValue: any;
-    constructor(path: string, statusCode: number, replyValue: any) {
-        super(`Request to ${path} failed: statusCode = ${statusCode}, response body: ${JSON.stringify(replyValue)}`);
-        this.statusCode = statusCode;
-        this.replyValue = replyValue;
     }
 }
 
