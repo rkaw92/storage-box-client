@@ -3,7 +3,7 @@
   "type": "module",
   "version": "1.0.0",
   "description": "client library and CLI for storage-box",
-  "main": "dist/index.js",
+  "main": "dist/browser.js",
   "author": "Robert Kawecki <robert+public@rkaw.pl>",
   "license": "MIT",
   "private": false,
