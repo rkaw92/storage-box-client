@@ -12,6 +12,7 @@ if (!authToken) {
 }
 
 const client = new NodeAPIClient('http://localhost:3001/', authToken);
+const filesystems = new Filesystems(client);
 const play = new Filesystem(client, 'play');
 
 function concat() {
@@ -27,6 +28,14 @@ function concat() {
         promise: promise
     };
 }
+
+(async function() {
+    const fsList = await filesystems.listFilesystems();
+    console.log('--- available filesystems ---');
+    for (let filesystem of fsList) {
+        console.log('* %s - %s', filesystem.alias, filesystem.name);
+    }
+})();
 
 // NOTE: Not called
 (async function() {
@@ -84,6 +93,7 @@ function concat() {
     }
 });
 
+// NOTE: Not called
 (async function() {
     const download = await play.downloadFile({ entryID: '24' });
     console.log(download.info);
@@ -91,4 +101,4 @@ function concat() {
     const concatenator = concat();
     download.data.pipe(concatenator.stream);
     console.log((await concatenator.promise).toString());
-})();
+});
